@@ -65,8 +65,6 @@ alpha=c(0.25, 0.5, 0.75)
 IPW_1_model(data, base_covariate, alpha)
 ```
 
-
-###IPW 2
 Using IPW2 to evaluate the average potential outcome and causal effects under allocation strategies $\alpha$. The model will output the point estimation and the estimated variance of average potention outcomes $\widehat{Y}(1, \alpha), \widehat{Y}(0, \alpha), \widehat{Y}(\alpha)$.
 
 ```{r}
