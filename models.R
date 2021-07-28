@@ -7,7 +7,7 @@ library(gtools)
 rm(list = ls())
 
 #read in the functions file
-source("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/functions.R")
+source("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/functions.R?raw=TRUE")
 
 #read in the network net0
 nodes=read.csv("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/nodes.csv")
