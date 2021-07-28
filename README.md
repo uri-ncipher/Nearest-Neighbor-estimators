@@ -1,8 +1,6 @@
 ---
-title: "IPW models"
+Title: "IPW models"
 author: "TingFang Lee"
-date: "7/27/2021"
-output: html_document
 ---
 
 Load packages and function script...
