@@ -6,10 +6,10 @@ library(numDeriv)
 library(gtools)
 rm(list = ls())
 
-source("~/Desktop/BootSim/Sample code/functions.R")
+source("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/functions.R")
 #read in the network net0
-nodes=read.csv("~/Desktop/BootSim/Sample code/nodes.csv")
-edges=read.csv("~/Desktop/BootSim/Sample code/edges.csv")
+nodes=read.csv("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/nodes.csv")
+edges=read.csv("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/edges.csv")
 
 net0=graph_from_data_frame(d=edges, vertices = nodes, directed=F)
 
