@@ -272,7 +272,7 @@ IPW_1_model=function(data, base_covariate, alpha){
                         grad_propensity_inv=L[[4]], score=score, theta=theta), 
                   alpha=alpha, type="variance"))
   names(APO)=c("a=1", "a=0", "margin", "alpha", "type")
-  contrast=combinations(n=length(alpha), r=2, v=alpha)
+  contrast=t(combn(alpha,2)) 
   
   CE=rbind(cbind(ldply(alpha, Y_DE, score=score), 
                  alpha0=alpha, alpha1=alpha, type="Direct"), 
@@ -355,7 +355,7 @@ IPW_2_model=function(data, M1,M2, alpha){
                         grad_propensity_inv=L[[4]], score=score, theta=theta), 
                   alpha=alpha, type="variance"))
   names(APO)=c("a=1", "a=0", "margin", "alpha", "type")
-  contrast=combinations(n=length(alpha), r=2, v=alpha)
+  contrast=t(combn(alpha,2)) 
   
   CE=rbind(cbind(ldply(alpha, Y_DE, score=score), 
                  alpha0=alpha, alpha1=alpha, type="Direct"), 
