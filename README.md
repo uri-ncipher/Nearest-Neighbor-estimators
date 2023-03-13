@@ -73,7 +73,11 @@ Equations for calculating the four causal effects are:
 * ${\widehat{TE} = \widehat{Y}(1, \alpha_0) - \widehat{Y}(0, \alpha_1)}$
 * ${\widehat{OE} = \widehat{Y}(\alpha_0) - \widehat{Y}(\alpha_1)}$,
   
-where $\alpha_0$, $\alpha_1$ both represents allocation strategies, and $\alpha_0 \neq  \alpha_1$ (Note: The associated [paper](https://arxiv.org/abs/2108.04865) compared the estimated average potential outcomes with $\alpha_1$ to $\alpha_0$ for the indirect, total, and overall effects. The code here compared the estimated average potential outcomes with $\alpha_0$ to $\alpha_1$ for the indirect, total, and overall effects). Users can set any values between 0 and 1 for $\alpha_0$ and  $\alpha_1$.
+where $\alpha_0$, $\alpha_1$ both represents allocation strategies, and $\alpha_0 \neq  \alpha_1$ (Note: The associated [paper](https://arxiv.org/abs/2108.04865) compared the estimated average potential outcomes with $\alpha_1$ to $\alpha_0$ for the indirect, total, and overall effects. The code here compared the estimated average potential outcomes with $\alpha_0$ to $\alpha_1$ for the indirect, total, and overall effects). Users can set any values between 0 and 1 for $\alpha_0$ and  $\alpha_1$. If given $\alpha$ is a vector, then the causal contrasts will produce pairwise comparisons in the sequential order of the values in $\alpha$. For example, if $\alpha = c(0.75, 0.25, 0.50)$, the contrasts for spillover effects will compare 
+  
+* (i) $\alpha_0 = 0.75$ versus $\alpha_1 = 0.25$; 
+* (ii) $\alpha_0 = 0.75$ versus $\alpha_1 = 0.50$;
+* (iii) $\alpha_0 = 0.25$ versus $\alpha_1 = 0.50$.
 
 ### IPW1
 Using IPW1 to estimate the average potential outcomes and causal effects under allocation strategies $\alpha$.
