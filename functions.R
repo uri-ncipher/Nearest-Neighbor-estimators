@@ -314,7 +314,7 @@ mat_2=function(theta){
     v2=theta[(length(M1$coefficients)+1):length(theta)]
     p1=plogis(v1 %*% unlist(c(1, data[i, c("treatment", base_covariate, avg_covariate)])))
     p2=plogis(v2 %*% unlist(c(1, data[i, base_covariate])))
-    prop=dbinom(data$na_a[i], size = data$na[i], prob = p1)*dbinom(data$treatment[i], size = 1, prob = p2)
+    prop=(p1^data$na_a[i])*((1-p1)^data$notna_a[i])*dbinom(data$treatment[i], size = 1, prob = p2)
     return(prop)
   }
   log_propensity_2_ind=function(theta){
