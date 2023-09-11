@@ -12,7 +12,12 @@ library(dplyr)
 library(igraph)
 library(numDeriv)
 library(gtools)
+library(doParallel)
+library(foreach)
 rm(list = ls())
+
+no_cores <- detectCores() - 1  
+registerDoParallel(cores=no_cores)  
 
 source("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/functions.R?raw=TRUE")
 ```
@@ -84,7 +89,7 @@ Using IPW1 to estimate the average potential outcomes and causal effects under a
 
 
 ```{r}
-alpha=c(0.25, 0.5, 0.75)  # set allocation strategies
+alpha=c(0.75, 0.5, 0.25)  # set allocation strategies
 IPW_1_model(data, base_covariate, alpha)
 ```
 In the output above, 
@@ -110,6 +115,5 @@ IPW_2_model(data, M1, M2, alpha)
 
 In the output above, 
   
-* The **section [[1]]** displays the point estimates (type = "point estimate" in the output) and estimated variances (type = "variance" in the output) for the average potential outcomes under three different allocation strategies (i.e., $\alpha = 0.25, 0.50, 0.75$) and each individual exposure ($a = 0, a=1$, and margin). "Margin" is the average potential outcomes for a particular allocation strategy, regardless of individual exposure status.
+* The **section [[1]]** displays the point estimates (type = "point estimate" in the output) and estimated variances (type = "variance" in the output) for the average potential outcomes under three different allocation strategies (i.e., $\alpha = 0.75, 0.50, 0.25$) and each individual exposure ($a = 0, a=1$, and margin). "Margin" is the average potential outcomes for a particular allocation strategy, regardless of individual exposure status.
 * The **section [[2]]** displays the point estimates (type = "Direct", "Indirect", "Total", "Overall" in the output) and estimated variances (type = "Var DE", "Var IE", "Var TE", "Var OE" in the output) of four causal effects: direct, indirect, total and overall effects, corresponding to particular allocation strategies $(\alpha_0$ and $\alpha_1)$. The estimated values are shown in "estimation" column in the output above.
-
