@@ -8,68 +8,84 @@ Load packages and function script...
 ```{r message=FALSE}
 library(lme4)
 library(plyr)
-library(dplyr)
 library(igraph)
 library(numDeriv)
-library(gtools)
-library(doParallel)
-library(foreach)
-rm(list = ls())
+library(dplyr)
 
-no_cores <- detectCores() - 1  
-registerDoParallel(cores=no_cores)  
-
-source("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/functions.R?raw=TRUE")
+source("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/IPW.R?raw=TRUE")
 ```
 
 
 ## Data Preparation
 
-Read in the synthetic nodes and edges data sets for creating the simulated network.
+Read in the synthetic data and network structure
 ```{r}
-nodes=read.csv("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/nodes.csv?raw=TRUE")
-edges=read.csv("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/edges.csv?raw=TRUE")
-net0=graph_from_data_frame(d=edges, vertices = nodes, directed=F)  # create network based on the nodes and edges data.
-```
-
-### Network visualization 
-```{r}
-# plot the network generated above
-plot(net0, vertex.size=1, vertex.label=NA, vertex.color="cadetblue3", vertex.frame.color="cadetblue3")
+sim.data <- read.csv("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/sim.data.csv?raw=TRUE")
+net0 <- readRDS(file = url("https://github.com/uri-ncipher/Nearest-Neighbor-estimators/blob/main/net0.100.rds?raw=TRUE", open = "rb"))
 ```
 
 ### Make the data for modeling
+The synthetic dataset `sim.data` and network `net0` include observations with missing outcomes. These data can be analyzed using the IPCW estimators, which account for outcome missingness.
+
+Because the IPW estimators require complete outcome data, we first calculate each individual's number of neighbors and number of treated neighbors in the original network. We then remove individuals with missing outcomes from the network, along with any resulting isolated nodes, to create the complete-case network `net1`. The number of neighbors and number of treated neighbors are then recalculated based on this reduced network for use in the IPW analysis.
+
+Finally, for both the original and complete-case networks, we calculate the average covariate value among each individual's neighbors (`avg_L`), which is used in the subsequent IPCW2 and IPW2.
 ```{r}
-# Save the number of individuals (nodes) and number of components
-n=length(V(net0))       # number of individuals
-m=components(net0)$no   # number of components
+V(net0)$name <- as.character(V(net0))
+remove.ids <- as.character(sim.data$id[sim.data$censored.cor == 1])
+net1 <- delete_vertices(net0, remove.ids)
+net1 <- delete_vertices(net1, V(net1)[degree(net1) == 0])
 
-# generate a dataset with three columns, the first column is participant id (node id), 
-# the second column is number of nearest neighbors for each participant (is also node degree), 
-# the third column indicate which component the participant is in.
-data=data.frame(id=1:n, na=unlist(lapply(1:n, num_neighbors, net=net0)),
-                component=components(net0)$membership) 
+keep.ids <- as.numeric(V(net1)$name)
 
-# assign treatment, outcome, and baseline covariates to data
-data$treatment=nodes$treatment
-data$outcome=nodes$outcome
-data$var1=nodes$var1
-data$var2=nodes$var2
-data$na_a= unlist(lapply(1:n, trt_neighbors, net=net0))
-data$notna_a=data$na-data$na_a
+sim.data1 <- sim.data[match(keep.ids, sim.data$id), ]
 
-base_covariate=c("var1", "var2")
+sim.data1$n.neighbor <- degree(net1)
 
-# averaging baseline covariates (average of nearest neighbors' baseline covariate values)
-data$avg_var1=unlist(lapply(1:n, avg_neighbors, net=net0, variable="var1"))
-data$avg_var2=unlist(lapply(1:n, avg_neighbors, net=net0, variable="var2"))
+sim.data1$n.trt.neighbor <- sapply(sim.data1$id, function(i) {
+  nb <- neighbors(net1, as.character(i))
+  nb.ids <- as.numeric(V(net1)[nb]$name)
+  sum(sim.data1$A[match(nb.ids, sim.data1$id)])
+})
 
-avg_covariate=c("avg_var1", "avg_var2")
+nn.sim.data <- data.frame()
+for (i in sim.data[["id"]]) {
+  nb <- neighborhood(net0, order = 1, nodes = as.character(i))[[1]]
+  ids <- as.numeric(V(net0)[nb]$name)
+  ids <- setdiff(ids, i)
+  temp.data <- sim.data[sim.data[["id"]] %in% ids, ]
+  temp.data$ego <- i
+  nn.sim.data <- rbind(nn.sim.data, temp.data)
+}
+
+nn.sim.data <- nn.sim.data %>%
+  group_by(ego) %>%
+  dplyr::summarise(avg_L = mean(L), .groups = "drop")
+sim.data <- merge(sim.data, nn.sim.data, by.x = "id", by.y = "ego")
+
+nn.sim.data.1 <- data.frame()
+for (i in sim.data1[["id"]]) {
+  nb <- neighborhood(net1, order = 1, nodes = as.character(i))[[1]]
+  ids <- as.numeric(V(net1)[nb]$name)
+  ids <- setdiff(ids, i)
+  temp.data <- sim.data1[sim.data1[["id"]] %in% ids, ]
+  temp.data$ego <- i
+  nn.sim.data.1 <- rbind(nn.sim.data.1, temp.data)
+}
+
+nn.sim.data.1 <- nn.sim.data.1 %>%
+  group_by(ego) %>%
+  dplyr::summarise(avg_L = mean(L), .groups = "drop")
+sim.data1 <- merge(sim.data1, nn.sim.data.1, by.x = "id", by.y = "ego")
 ```
 
 ## Modeling
 
-In this section, we will apply both IPW1 and IPW2 estimators for the average potential outcomes and corresponding causal effects. An individual's exposure/treatment and allocation strategy $\alpha$ jointly determine the average potential outcome (allocation strategy represents the probability that individuals in nearest neighbors set receiving the exposure/treatment in the counterfactual scenario, so it is a numeric value between 0 and 1). For each estimator, the R programs will output the **point estimation and the estimated variance of average potential outcomes** $\boldsymbol{\widehat{Y}(1, \alpha), \widehat{Y}(0, \alpha), \widehat{Y}(\alpha)}$ under three different allocation strategies $\alpha$ (i.e., 0.25, 0.50, and 0.75), respectively. Also, the R program will output the **point estimation and estimated variance of four causal effects: Direct** (DE), **Indirect** (IE), **Total** (TE), and **Overall effect** (OE).  
+In this section, we apply the IPW1, IPW2, IPCW1, and IPCW2 estimators to estimate average potential outcomes and the corresponding causal effects. The average potential outcome is defined by an individual's exposure/treatment status and the allocation strategy (\alpha), where (\alpha) represents the probability that individuals in the nearest-neighbor set receive the exposure/treatment under the counterfactual allocation strategy. Thus, (\alpha) takes a value between 0 and 1.
+
+For each estimator, the R functions return the **point estimates and estimated variances of the average potential outcomes**, (\boldsymbol{\widehat{Y}(1,\alpha), \widehat{Y}(0,\alpha), \widehat{Y}(\alpha)}), under three allocation strategies, (\alpha = 0.25, 0.50,) and (0.75). The functions also return the **point estimates and estimated variances of four causal effects**: the direct effect (DE), indirect effect (IE), total effect (TE), and overall effect (OE).
+
+The IPW1 and IPW2 estimators are applied to complete outcome data, whereas the IPCW1 and IPCW2 estimators accommodate missing outcomes through inverse probability of censoring weighting.
 
 Equations for calculating the four causal effects are:
   
@@ -84,36 +100,16 @@ where $\alpha_0$, $\alpha_1$ both represents allocation strategies, and $\alpha_
 * (ii) $\alpha_0 = 0.75$ versus $\alpha_1 = 0.50$;
 * (iii) $\alpha_0 = 0.25$ versus $\alpha_1 = 0.50$.
 
-### IPW1
-Using IPW1 to estimate the average potential outcomes and causal effects under allocation strategies $\alpha$.
-
-
 ```{r}
-alpha=c(0.75, 0.5, 0.25)  # set allocation strategies
-IPW_1_model(data, base_covariate, alpha)
+point.est.IPCW1 = Y_IPCW1(data = sim.data, net = net0, alphas = c(0.25, 0.5, 0.75), id.var = "id", trt.var = "A", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", propensity.covars = c("L"), censor.indicator = "censored.cor", censor.covars = c("L"), censor.correlation = TRUE, component.var = "component", obs.y = "obs.y.cor")
+var.est.IPCW1 = Var_Y_IPCW1(alphas = c(0.25, 0.5, 0.75), net = net0, data = sim.data, id.var = "id", obs.y= "obs.y.cor", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", trt.var = "A", propensity.covars = c("L"), censor.indicator = "censored.cor", censor.covars = c("L"), censor.correlation = TRUE, component.var = "component")
+
+point.est.IPCW2 = Y_IPCW2(data = sim.data, net = net0, alphas = c(0.25, 0.5, 0.75), id.var = "id", trt.var = "A", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", propensity.covars = c("L"), censor.covars = c("L"), censor.correlation = TRUE, component.var = "component", obs.y = "obs.y.cor")
+var.est.IPCW2 = Var_Y_IPCW2(alphas = c(0.25, 0.5, 0.75), net = net0, data = sim.data, id.var = "id", obs.y= "obs.y.cor", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", trt.var = "A", propensity.covars = c("L"), propensity.nn.covars = c("avg_L"), censor.indicator = "censored.cor", censor.covars = c("L"), censor.correlation = TRUE, component.var = "component")
+
+point.est.IPW1 = Y_IPW1(data = sim.data1, net = net1, alphas = c(0.25, 0.5, 0.75), id.var = "id", trt.var = "A", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", propensity.covars = c("L"), obs.y = "obs.y.cor")
+var.est.IPW1 = Var_Y_IPW1(alphas = c(0.25, 0.5, 0.75), net = net1, data = sim.data1, id.var = "id", obs.y= "obs.y.cor", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", trt.var = "A", propensity.covars = c("L"), component.var = "component")
+
+point.est.IPW2 = Y_IPW2(data = sim.data1, net = net1, alphas = c(0.25, 0.5, 0.75), id.var = "id", trt.var = "A", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", propensity.nn.covars = c("avg_L"), propensity.covars = c("L"), obs.y = "obs.y.cor")
+var.est.IPW2 = Var_Y_IPW2(alphas = c(0.25, 0.5, 0.75), net = net1, data = sim.data1, id.var = "id", obs.y= "obs.y.cor", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", trt.var = "A", propensity.covars = c("L"), propensity.nn.covars = c("avg_L"), component.var = "component")
 ```
-In the output above, 
-  
-* The **section [[1]]** displays the point estimates (type = "point estimate" in the output) and estimated variances (type = "variance" in the output) for the average potential outcomes under three different allocation strategies (i.e., $\alpha = 0.25, 0.50, 0.75$) and each individual exposure ($a = 0, a=1$, and margin). "Margin" is the average potential outcomes for a particular allocation strategy, regardless of individual exposure status.
-* The **section [[2]]** displays the point estimates (type = "Direct", "Indirect", "Total", "Overall" in the output) and estimated variances (type = "Var DE", "Var IE", "Var TE", "Var OE" in the output) of four causal effects: direct, indirect, total and overall effects, corresponding to particular allocation strategies $(\alpha_0$ and $\alpha_1)$. The estimated values are shown in "estimation" column in the output above.
-
-
-### IPW2
-Using IPW2 to estimate the average potential outcomes and causal effects under allocation strategies $\alpha$. 
-
-```{r}
-formula_1=paste("cbind(na_a, notna_a)", "~", "treatment", "+", 
-                paste(base_covariate, collapse = "+"), "+", 
-                paste(avg_covariate, collapse = "+"))
-formula_2=paste("treatment", "~", paste(base_covariate, collapse = "+"))
-M1=glm(formula_1, family = binomial(link = "logit"), data=data)
-M2=glm(formula_2, family = binomial(link = "logit"), data=data)
-
-IPW_2_model(data, M1, M2, alpha)
-
-```
-
-In the output above, 
-  
-* The **section [[1]]** displays the point estimates (type = "point estimate" in the output) and estimated variances (type = "variance" in the output) for the average potential outcomes under three different allocation strategies (i.e., $\alpha = 0.75, 0.50, 0.25$) and each individual exposure ($a = 0, a=1$, and margin). "Margin" is the average potential outcomes for a particular allocation strategy, regardless of individual exposure status.
-* The **section [[2]]** displays the point estimates (type = "Direct", "Indirect", "Total", "Overall" in the output) and estimated variances (type = "Var DE", "Var IE", "Var TE", "Var OE" in the output) of four causal effects: direct, indirect, total and overall effects, corresponding to particular allocation strategies $(\alpha_0$ and $\alpha_1)$. The estimated values are shown in "estimation" column in the output above.
