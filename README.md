@@ -113,3 +113,6 @@ var.est.IPW1 = Var_Y_IPW1(alphas = c(0.25, 0.5, 0.75), net = net1, data = sim.da
 point.est.IPW2 = Y_IPW2(data = sim.data1, net = net1, alphas = c(0.25, 0.5, 0.75), id.var = "id", trt.var = "A", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", propensity.nn.covars = c("avg_L"), propensity.covars = c("L"), obs.y = "obs.y.cor")
 var.est.IPW2 = Var_Y_IPW2(alphas = c(0.25, 0.5, 0.75), net = net1, data = sim.data1, id.var = "id", obs.y= "obs.y.cor", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", trt.var = "A", propensity.covars = c("L"), propensity.nn.covars = c("avg_L"), component.var = "component")
 ```
+## References
+1. Lee T, Buchanan AL, Katenka NV, Forastiere L, Halloran ME, Friedman SR, Nikolopoulos G. Estimating causal effects of HIV prevention interventions with interference in network-based studies among people who inject drugs. Annals of Applied Statistics. 2023;17(3):2165–2191. doi:10.1214/22-AOAS1713.
+2. Lee T, Buchanan AL, Katenka N, Forastiere L, Halloran ME, Nikolopoulos G. Assessing spillover effects: Handling missing outcomes in network-based studies. Statistical Methods in Medical Research. 2025;34(12):2284–2301. doi:10.1177/09622802251382586.
