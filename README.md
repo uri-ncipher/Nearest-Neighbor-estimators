@@ -100,6 +100,38 @@ where $\alpha_0$, $\alpha_1$ both represents allocation strategies, and $\alpha_
 * (ii) $\alpha_0 = 0.75$ versus $\alpha_1 = 0.50$;
 * (iii) $\alpha_0 = 0.25$ versus $\alpha_1 = 0.50$.
 
+## Function Arguments
+
+The following arguments are used across the IPW and IPCW point and variance estimation functions.
+
+- **`data`**: A data frame containing the individual-level analysis data.
+
+- **`net`**: An `igraph` network object representing the observed network structure. Vertex names should correspond to individual IDs in `data`.
+
+- **`alphas`**: A numeric vector of hypothetical treatment allocation probabilities used to define the target treatment allocation strategies. Values should be between 0 and 1.
+
+- **`id.var`**: A character string specifying the name of the variable that uniquely identifies each individual.
+
+- **`trt.var`**: A character string specifying the name of the binary individual treatment indicator variable, typically coded as 0 = untreated and 1 = treated.
+
+- **`n.neighbor`**: A character string specifying the name of the variable containing the total number of network neighbors for each individual.
+
+- **`n.trt.neighbor`**: A character string specifying the name of the variable containing the number of treated network neighbors for each individual.
+
+- **`propensity.covars`**: A character vector specifying the names of individual-level covariates included in the treatment propensity model.
+
+- **`propensity.nn.covars`**: A character vector specifying the names of covariates included in the model for treatment among an individual's network neighbors. This argument is used in the type 2 estimators.
+
+- **`censor.indicator`**: A character string specifying the name of the binary censoring indicator variable, typically coded as 1 = censored and 0 = observed.
+
+- **`censor.covars`**: A character vector specifying the names of covariates included in the censoring model.
+
+- **`censor.correlation`**: A logical value indicating whether correlation in censoring within network components should be accounted for.
+
+- **`component.var`**: A character string specifying the name of the variable identifying network components. This variable is used to account for clustering within connected network components, including in variance estimation and correlated censoring models.
+
+- **`obs.y`**: A character string specifying the name of the variable containing the observed outcome.
+
 ```{r}
 point.est.IPCW1 = Y_IPCW1(data = sim.data, net = net0, alphas = c(0.25, 0.5, 0.75), id.var = "id", trt.var = "A", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", propensity.covars = c("L"), censor.indicator = "censored.cor", censor.covars = c("L"), censor.correlation = TRUE, component.var = "component", obs.y = "obs.y.cor")
 var.est.IPCW1 = Var_Y_IPCW1(alphas = c(0.25, 0.5, 0.75), net = net0, data = sim.data, id.var = "id", obs.y= "obs.y.cor", n.neighbor = "n.neighbor", n.trt.neighbor = "n.trt.neighbor", trt.var = "A", propensity.covars = c("L"), censor.indicator = "censored.cor", censor.covars = c("L"), censor.correlation = TRUE, component.var = "component")
